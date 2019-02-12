@@ -22,7 +22,8 @@ class Memcache():
     set_sql = 'REPLACE INTO cache (key, val) VALUES (?, ?)'
     add_sql = 'INSERT INTO cache (key, val) VALUES (?, ?)'
 
-    connection = None
+    db_connection = None
+    socket_connection = None
 
     def create_server(self):
         """ create a server that listens on
@@ -31,15 +32,16 @@ class Memcache():
         """
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.bind((HOST, PORT))
-            s.listen()
-            conn, addr = s.accept()
-            with conn:
+            print('server started at {host}:{port}'.format(host=HOST, port=PORT))
+            s.listen(5)
+            self.socket_connection, addr = s.accept()
+            with self.socket_connection:
                 print('Connected by', addr)
                 while True:
-                    data = conn.recv(1024)
+                    data = self.socket_connection.recv(1024)
                     if not data:
                         break
-                    conn.sendall(data)
+                    self.socket_connection.sendall(data)
 
     def create_connection(self, db_file):
         """ create a database connection to the SQLite database
@@ -48,7 +50,7 @@ class Memcache():
         :return: Connection object or None
         """
         try:
-            self.connection = sqlite3.connect(db_file)
+            self.db_connection = sqlite3.connect(db_file)
         except Error as e:
             print(e)
 
@@ -72,7 +74,9 @@ class Memcache():
         return
 
 if __name__ == '__main__':
-    if sys.argv[0] != 'show':
+    if len(sys.argv) > 1 and sys.argv[1] == 'show':
         cache = Memcache()
         cache.show()
         sys.exit(1)
+    cache = Memcache()
+    cache.create_server()
