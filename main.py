@@ -9,20 +9,20 @@ from utils import encode, format_row
 HOST = 'localhost'
 PORT = 11211
 
-class Memcache():
 
+class Memcache():
     _create_table_sql = (
         'CREATE TABLE IF NOT EXISTS cache '
         '('
         ' key TEXT PRIMARY KEY,'
         ' val BLOB,'
-        ' exptime FLOAT' # ignored for now
+        ' exptime FLOAT'  # ignored for now
         ')'
     )
     _get_sql = 'SELECT val FROM cache WHERE key = ?'
     _del_sql = 'DELETE FROM cache WHERE key = ?'
     _add_sql = 'INSERT INTO cache (key, val) VALUES (?, ?)'
-    _show_sql = 'SELECT key, val from cache'
+    _show_sql = 'SELECT key, val FROM cache'
 
     db_conn = None
     socket_conn = None
@@ -39,7 +39,8 @@ class Memcache():
         """
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.bind((HOST, PORT))
-            print('server started at {host}:{port}'.format(host=HOST, port=PORT))
+            print('server started at {host}:{port}'
+                  .format(host=HOST, port=PORT))
             s.listen(5)
             self.socket_conn, addr = s.accept()
             with self.socket_conn:
@@ -64,7 +65,8 @@ class Memcache():
         elif data[0] == 'delete':
             self.delete(data)
         else:
-            self.socket_conn.send(encode('Invalid command: {command}'.format(command=data[0])))
+            self.socket_conn.send(encode('Unrecognized command: {command}'
+                                         .format(command=data[0])))
             return None
 
     def create_connection(self, db_file):
@@ -83,25 +85,25 @@ class Memcache():
 
     def get(self, data):
         # Retrieve a property from cache
-        if len(data) > 1:
+        if len(data) == 2:
             key = data[1]
             for row in self.db_conn.execute(self._get_sql, (key,)):
                 self.socket_conn.send(encode(row[0]))
             return
-        self.socket_conn.send(encode('Proper usage: get <key>'))
+        self.socket_conn.send(encode('Usage:: get <key>'))
 
     def delete(self, data):
         # Delete property from cache
-        if len(data) > 1:
+        if len(data) == 2:
             key = data[1]
             with self.db_conn as conn:
                 conn.execute(self._del_sql, (key,))
                 return
-        self.socket_conn.send(encode('Proper usage: delete <key>'))
+        self.socket_conn.send(encode('Usage:: delete <key>'))
 
     def set(self, data):
         # Set a property in cache
-        if len(data) > 2:
+        if len(data) == 3:
             key = data[1]
             value = data[2]
             with self.db_conn as conn:
@@ -110,7 +112,7 @@ class Memcache():
                 except sqlite3.IntegrityError:
                     pass
                 return
-        self.socket_conn.send(encode('Proper usage: set <key> <val>'))
+        self.socket_conn.send(encode('Usage:: set <key> <val>'))
 
     def show(self):
         # Show all values from cache
@@ -122,10 +124,13 @@ class Memcache():
                 print(format_row(row))
         return
 
+
 if __name__ == '__main__':
-    if len(sys.argv) > 1 and sys.argv[1] == 'show':
+    if len(sys.argv) == 3 and sys.argv[1] == 'show':
         cache = Memcache(sys.argv[2], False)
         cache.show()
         sys.exit(1)
     elif len(sys.argv) == 3 and sys.argv[1] == 'serve':
         cache = Memcache(sys.argv[2], True)
+    else:
+        print('Usage: python main.py <show|serve> database.sqlite')
